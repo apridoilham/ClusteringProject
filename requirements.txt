@@ -1,0 +1,7 @@
+Flask
+numpy
+pandas
+matplotlib
+pytz
+scipy
+beautifulsoup4
