@@ -28,7 +28,7 @@ Aplikasi ini adalah alat berbasis web yang dibangun dengan Flask untuk melakukan
 
 1.  **Clone Repositori**
     ```bash
-    git clone [URL-repositori-anda]
+    git clone https://github.com/apridoilham/ClusteringProject.git
     cd nama-direktori-proyek
     ```
 
