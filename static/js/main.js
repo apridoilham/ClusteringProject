@@ -1,149 +1,100 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const App = {
+document.addEventListener('alpine:init', () => {
+    Alpine.data('appData', () => ({
         historyKey: 'clusteringHistory_v6',
+        inputFields: [{ columnName: '', values: '' }],
+        analysisType: 'centering',
         
         init() {
-            this.cacheDOMElements();
-            this.addEventListeners();
+            console.log('appData: init called'); // DEBUG
             this.renderHistory();
             this.introAnimation();
-            this.updateRemoveButtonState();
-        },
 
-        cacheDOMElements() {
-            this.form = document.getElementById('calculation-form');
-            this.inputFieldsContainer = document.getElementById('input-fields');
-            this.addVariableBtn = document.getElementById('add-variable-btn');
-            this.removeVariableBtn = document.getElementById('remove-variable-btn');
-            this.analysisSelect = document.getElementById('analysis-type-select');
-            this.scalingOptions = document.getElementById('scaling-options');
-            this.resultsContainer = document.getElementById('results-container');
-            this.historyListContainer = document.getElementById('history-list-container');
-            this.modal = document.getElementById('confirmation-modal');
-            this.modalText = document.getElementById('modal-text');
-            this.modalConfirmBtn = document.getElementById('modal-confirm-btn');
-            this.modalCancelBtn = document.getElementById('modal-cancel-btn');
-            this.submitBtn = this.form.querySelector('button[type="submit"]');
-            this.submitBtnText = document.getElementById('submit-text');
-            this.messageBox = document.getElementById('message-box');
-            this.formCard = document.getElementById('form-card');
-            this.sidebarCard = document.getElementById('sidebar').querySelector('.card');
-        },
+            // --- Event Delegation untuk tombol riwayat (Lihat Detail & Hapus) ---
+            // Listener ini dipasang SEKALI saat aplikasi diinisialisasi
+            const historyListContainer = document.getElementById('history-list-container');
+            if (historyListContainer) {
+                historyListContainer.addEventListener('click', (e) => {
+                    // Cek apakah yang diklik adalah tombol delete atau leluhur terdekatnya
+                    const clickedDeleteButton = e.target.closest('.js-delete-history-item');
+                    if (clickedDeleteButton) {
+                        e.preventDefault(); // Mencegah aksi default (misal, navigasi jika itu link)
+                        const id = clickedDeleteButton.dataset.id;
+                        console.log('main.js: Tombol delete (via delegasi) diklik untuk ID:', id); // DEBUG
+                        window.dispatchEvent(new CustomEvent('modal-open', { // Memicu modal konfirmasi
+                            detail: {
+                                text: `Yakin ingin menghapus riwayat #${String(id).slice(-6)}?`,
+                                onConfirm: () => this.deleteHistoryItem(id) // Fungsi yang akan dijalankan jika dikonfirmasi
+                            }
+                        }));
+                        return; // Penting: Hentikan pemrosesan lebih lanjut jika tombol delete diklik
+                    }
 
-        addEventListeners() {
-            this.addVariableBtn.addEventListener('click', () => this.addInput());
-            this.removeVariableBtn.addEventListener('click', () => this.removeInput());
-            this.analysisSelect.addEventListener('change', () => this.toggleScalingOptions());
-            this.form.addEventListener('submit', (e) => this.handleFormSubmit(e));
-            this.historyListContainer.addEventListener('click', (e) => this.handleHistoryAction(e));
-            this.modalCancelBtn.addEventListener('click', () => this.hideModal(this.modal));
-            this.modal.addEventListener('click', (e) => { if(e.target === this.modal) this.hideModal(this.modal) });
-            document.addEventListener('click', (e) => {
-                const copyBtn = e.target.closest('.copy-btn');
-                if(copyBtn) this.copyTableToCSV(copyBtn);
-            });
+                    // Cek apakah yang diklik adalah tombol view detail atau leluhur terdekatnya
+                    const viewButton = e.target.closest('.js-view-detail-btn');
+                    if (viewButton) { 
+                        e.preventDefault();
+                        const id = viewButton.dataset.id;
+                        console.log('main.js: Tombol view detail (via delegasi) diklik untuk ID:', id); // DEBUG
+                        // Langsung panggil logika navigasi untuk view detail
+                        const item = this.getHistory().find(h => h.id == id);
+                        if (item) {
+                            sessionStorage.setItem('historyDetailItem_v6', JSON.stringify(item));
+                            window.location.href = '/history-detail';
+                        } else {
+                            this.displayMessage('Item riwayat tidak ditemukan!', 'error');
+                        }
+                    }
+                });
+            }
+            // --- Akhir Event Delegation ---
         },
 
         introAnimation() {
-            gsap.set([this.formCard, this.sidebarCard], { opacity: 0, y: 30 });
+            gsap.set(["#form-card", "#sidebar .card"], { opacity: 0, y: 30 });
             gsap.set(["header h1", "header p"], { opacity: 0, y: -20 });
 
             gsap.to("header h1", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out" });
             gsap.to("header p", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.2 });
 
-            gsap.to(this.formCard, { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.4 });
-            gsap.to(this.sidebarCard, { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.6 });
+            gsap.to("#form-card", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.4 });
+            gsap.to("#sidebar .card", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.6 });
         },
 
         addInput() {
-            const index = this.inputFieldsContainer.children.length + 1;
-            const newGroup = document.createElement('div');
-            newGroup.className = 'input-group space-y-2';
-            newGroup.innerHTML = `
-                ${index > 1 ? '<hr class="border-t border-border-color my-4 opacity-30">' : ''}
-                <div>
-                    <label class="input-label" for="column-name-${index}">Nama Variabel ${index}</label>
-                    <input type="text" id="column-name-${index}" name="columns[]" placeholder="Nama Variabel (cth: Luminositas)" required class="input-field">
-                </div>
-                <div>
-                    <label class="input-label" for="values-${index}">Nilai Variabel ${index}</label>
-                    <input type="text" id="values-${index}" name="values[]" placeholder="Nilai (dipisah koma, cth: 1,2,3)" required class="input-field">
-                </div>
-            `;
-            this.inputFieldsContainer.appendChild(newGroup);
-            gsap.from(newGroup, { duration: 0.5, y: -20, opacity: 0, ease: 'power2.out' });
-            this.updateRemoveButtonState();
-        },
-
-        removeInput() {
-            if (this.inputFieldsContainer.children.length > 1) {
-                const lastGroup = this.inputFieldsContainer.lastElementChild;
-                gsap.to(lastGroup, { duration: 0.4, x: 50, opacity: 0, ease: 'power2.in', onComplete: () => {
-                    lastGroup.remove();
-                    this.updateInputLabels();
-                    this.updateRemoveButtonState();
-                }});
-            }
-        },
-
-        updateInputLabels() {
-            Array.from(this.inputFieldsContainer.children).forEach((group, index) => {
-                group.querySelector('.input-label[for^="column-name-"]').textContent = `Nama Variabel ${index + 1}`;
-                group.querySelector('.input-label[for^="values-"]').textContent = `Nilai Variabel ${index + 1}`;
-                group.querySelector('input[name="columns[]"]').id = `column-name-${index + 1}`;
-                group.querySelector('input[name="values[]"]').id = `values-${index + 1}`;
-                const hr = group.querySelector('hr');
-                if (index === 0) {
-                    if (hr) hr.remove();
-                } else {
-                    if (!hr) {
-                        const newHr = document.createElement('hr');
-                        newHr.className = 'border-t border-border-color my-4 opacity-30';
-                        group.prepend(newHr);
-                    }
+            this.inputFields.push({ columnName: '', values: '' });
+            this.$nextTick(() => {
+                const newGroup = document.querySelector(`.input-group[data-index="${this.inputFields.length - 1}"]`);
+                if (newGroup) {
+                    gsap.from(newGroup, { duration: 0.5, y: -20, opacity: 0, ease: 'power2.out' });
                 }
             });
         },
 
-        updateRemoveButtonState() {
-            if (this.inputFieldsContainer.children.length <= 1) {
-                this.removeVariableBtn.disabled = true;
-                this.removeVariableBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                this.removeVariableBtn.disabled = false;
-                this.removeVariableBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        removeInput() {
+            if (this.inputFields.length > 1) {
+                const lastIndex = this.inputFields.length - 1;
+                const lastGroup = document.querySelector(`.input-group[data-index="${lastIndex}"]`);
+                if (lastGroup) {
+                    gsap.to(lastGroup, { duration: 0.4, x: 50, opacity: 0, ease: 'power2.in', onComplete: () => {
+                        this.inputFields.pop();
+                    }});
+                } else {
+                    this.inputFields.pop();
+                }
             }
         },
 
         toggleScalingOptions() {
-            const isScaling = this.analysisSelect.value === 'scaling';
-            gsap.to(this.scalingOptions, {
-                height: isScaling ? 'auto' : 0,
-                opacity: isScaling ? 1 : 0,
-                marginTop: isScaling ? '1.5rem' : 0,
-                duration: 0.4,
-                ease: 'power2.out',
-                onComplete: () => { 
-                    if (isScaling) {
-                        this.scalingOptions.classList.remove('hidden'); 
-                    } else {
-                        this.scalingOptions.classList.add('hidden'); 
-                    }
-                }
-            });
-             if (isScaling) {
-                this.scalingOptions.classList.remove('hidden');
-            } else {
-                this.scalingOptions.classList.remove('hidden');
-            }
+            // Alpine.js handles the 'hidden' class and transitions based on analysisType
         },
 
-        async handleFormSubmit(e) {
-            e.preventDefault();
+        async handleFormSubmit(event) {
+            event.preventDefault();
             await this.clearResults();
 
-            const columnInputs = Array.from(this.form.querySelectorAll('input[name="columns[]"]'));
-            const valueInputs = Array.from(this.form.querySelectorAll('input[name="values[]"]'));
+            const form = event.target;
+            const columnInputs = Array.from(form.querySelectorAll('input[name="columns[]"]'));
+            const valueInputs = Array.from(form.querySelectorAll('input[name="values[]"]'));
             let firstValueCount = -1;
             let validationError = null;
             let hasValidData = false;
@@ -169,20 +120,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         validationError = `Nilai untuk variabel "${colName}" tidak boleh kosong.`;
                         break;
                     }
-                    
-                    if (/[^0-9.,\s-]/.test(valString)) {
-                        validationError = `Nilai untuk variabel "${colName}" mengandung karakter tidak valid. Gunakan hanya angka, koma, titik, spasi, dan tanda hubung (-).`;
+
+                    if (/[^0-9,\s-]/.test(valString)) {
+                        validationError = `Nilai untuk variabel "${colName}" mengandung karakter tidak valid. Gunakan hanya bilangan bulat, koma, spasi, dan tanda hubung (-).`;
                         break;
                     }
 
-                    const values = valString.split(',').map(v => v.trim()).filter(v => v !== '');
+                    const values = valString.split(/[, ]+/).map(v => v.trim()).filter(v => v !== '');
                     if (values.length === 0) {
                         validationError = `Nilai untuk variabel "${colName}" tidak boleh kosong setelah diparsing.`;
                         break;
                     }
 
-                    if (values.some(v => isNaN(parseFloat(v)))) {
-                        validationError = `Nilai untuk variabel "${colName}" mengandung data yang bukan angka.`;
+                    if (values.some(v => !Number.isInteger(parseFloat(v)))) {
+                        validationError = `Nilai untuk variabel "${colName}" mengandung data yang bukan bilangan bulat.`;
                         break;
                     }
 
@@ -197,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             if (!hasValidData && !validationError) {
-                 validationError = 'Mohon masukkan setidaknya satu data variabel yang valid.';
+                validationError = 'Mohon masukkan setidaknya satu data variabel yang valid.';
             }
 
             if (validationError) {
@@ -205,10 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            this.submitBtn.disabled = true;
-            this.submitBtnText.innerHTML = `<span class="loading-spinner"></span> Memproses...`;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const submitBtnText = form.querySelector('#submit-text');
+            submitBtn.disabled = true;
+            submitBtnText.innerHTML = `<span class="loading-spinner w-5 h-5 mr-3 border-2 border-white border-t-accent-blue rounded-full animate-spin"></span> Memproses...`;
 
-            const formData = new FormData(this.form);
+            const formData = new FormData(form);
             const data = {
                 columns: formData.getAll('columns[]').filter((_, i) => columnInputs[i].value.trim() !== '' && valueInputs[i].value.trim() !== ''),
                 values: formData.getAll('values[]').filter((_, i) => columnInputs[i].value.trim() !== '' && valueInputs[i].value.trim() !== ''),
@@ -222,14 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const maxNewVal = parseFloat(data.maxnew);
                 if (isNaN(minNewVal) || isNaN(maxNewVal)) {
                     this.displayError('Nilai Minimum Baru dan Maksimum Baru harus berupa angka untuk Scaling.');
-                    this.submitBtn.disabled = false;
-                    this.submitBtnText.innerHTML = `<i class="fa-solid fa-meteor"></i> Jalankan Analisis`;
+                    submitBtn.disabled = false;
+                    submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis`;
                     return;
                 }
                 if (minNewVal >= maxNewVal) {
                     this.displayError('Nilai Minimum Baru harus lebih kecil dari Nilai Maksimum Baru untuk Scaling.');
-                    this.submitBtn.disabled = false;
-                    this.submitBtnText.innerHTML = `<i class="fa-solid fa-meteor"></i> Jalankan Analisis`;
+                    submitBtn.disabled = false;
+                    submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis`;
                     return;
                 }
             }
@@ -246,18 +199,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.displayResult(result);
                 const historyEntry = { ...data, ...result, id: Date.now(), created_at: result.created_at };
                 this.saveToHistory(historyEntry);
-                this.renderHistory();
+                this.renderHistory(); 
 
-            } catch (error) { 
-                this.displayError(error.message); 
+            } catch (error) {
+                this.displayError(error.message);
             } finally {
-                this.submitBtn.disabled = false;
-                this.submitBtnText.innerHTML = `<i class="fa-solid fa-meteor"></i> Jalankan Analisis`;
+                submitBtn.disabled = false;
+                submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis`;
             }
         },
 
         clearResults() {
-            const currentResults = this.resultsContainer.querySelector('.result-card, .error-card');
+            const resultsContainer = document.getElementById('results-container');
+            const currentResults = resultsContainer.querySelector('.result-card, .error-card');
             if (currentResults) {
                 return new Promise(resolve => {
                     gsap.to(currentResults, {
@@ -265,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         opacity: 0,
                         y: -30,
                         onComplete: () => {
-                            this.resultsContainer.innerHTML = '';
+                            resultsContainer.innerHTML = '';
                             resolve();
                         }
                     });
@@ -275,47 +229,72 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         displayResult(result) {
+            const resultsContainer = document.getElementById('results-container');
             let contentHTML = `
-                <div class="card result-card space-y-8" style="opacity: 0; transform: translateY(30px);">
+                <div class="card bg-bg-secondary border border-border-color rounded-xl p-8 shadow-lg result-card animate-fade-in-up">
                     ${result.analysis_type !== 'euclidean' ? `
-                        <div>
-                            <div class="table-header">
-                                <h3 class="table-title">Hasil ${result.analysis_type.charAt(0).toUpperCase() + result.analysis_type.slice(1)}</h3>
-                                <button class="btn-icon copy-btn" title="Salin sebagai CSV"><i class="fa-solid fa-clipboard"></i></button>
+                        <div class="mb-8">
+                            <div class="flex justify-between items-center border-b border-border-color pb-4 mb-4">
+                                <h3 class="text-xl font-semibold text-text-primary">Hasil ${result.analysis_type.charAt(0).toUpperCase() + result.analysis_type.slice(1)}</h3>
+                                </div>
+                            <div class="table-container overflow-x-auto rounded-lg border border-border-color">
+                                ${result.result_data_html}
                             </div>
-                            <div class="table-container">${result.result_data_html}</div>
                         </div>` : ''}
                     ${result.dist_matrix_html ? `
-                        <div>
-                            <div class="table-header">
-                                <h3 class="table-title">Matriks Jarak Euclidean</h3>
-                                <button class="btn-icon copy-btn" title="Salin sebagai CSV"><i class="fa-solid fa-clipboard"></i></button>
+                        <div class="mb-8">
+                            <div class="flex justify-between items-center border-b border-border-color pb-4 mb-4">
+                                <h3 class="text-xl font-semibold text-text-primary">Matriks Jarak Euclidean</h3>
+                                </div>
+                            <div class="table-container overflow-x-auto rounded-lg border border-border-color">
+                                ${result.dist_matrix_html}
                             </div>
-                            <div class="table-container">${result.dist_matrix_html}</div>
                         </div>` : ''}
                     ${result.plot_url ? `
                         <div id="dendrogram-section">
-                            <h3 class="section-heading"><i class="fa-solid fa-chart-sankey"></i>Dendrogram Klastering</h3>
-                            <div class="dendrogram-wrapper">
-                                <img src="data:image/png;base64,${result.plot_url}" alt="Dendrogram Hasil Klastering">
+                            <div class="flex justify-between items-center border-b border-border-color pb-4 mb-6">
+                                <h3 class="section-heading text-2xl font-semibold flex items-center gap-3 text-text-primary"><i class="fa-solid fa-chart-line text-accent-blue"></i>Dendrogram Klastering</h3>
+                                <button class="js-enlarge-dendrogram btn-icon w-10 h-10 rounded-lg bg-bg-tertiary border border-border-color text-text-secondary hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Perbesar Dendrogram" data-image-url="data:image/png;base64,${result.plot_url}">
+                                    <i class="fa-solid fa-expand"></i>
+                                </button>
+                            </div>
+                            <div class="dendrogram-wrapper rounded-xl p-6 bg-bg-secondary border border-border-color text-center overflow-x-auto">
+                                <img src="data:image/png;base64,${result.plot_url}" alt="Dendrogram Hasil Klastering" class="block max-w-full h-auto mx-auto rounded-lg shadow-md">
                             </div>
                         </div>` : ''}
                 </div>`;
-            this.resultsContainer.innerHTML = contentHTML;
-            gsap.to(this.resultsContainer.querySelector('.result-card'), { duration: 0.8, y: 0, opacity: 1, ease: 'power3.out' });
+            resultsContainer.innerHTML = contentHTML;
+
+            // --- Attach event listener setelah innerHTML diperbarui ---
+            this.$nextTick(() => { 
+                if (result.plot_url) {
+                    const enlargeButton = resultsContainer.querySelector('.js-enlarge-dendrogram');
+                    if (enlargeButton) {
+                        console.log('main.js: Tombol perbesar ditemukan setelah $nextTick. Mencoba attach listener.'); 
+                        enlargeButton.addEventListener('click', (e) => {
+                            const imageUrl = e.currentTarget.dataset.imageUrl;
+                            console.log('main.js: Tombol diklik, memicu open-image-modal dengan URL:', imageUrl.substring(0, 50) + '...'); 
+                            window.dispatchEvent(new CustomEvent('open-image-modal', { detail: { imageUrl: imageUrl } }));
+                        });
+                    } else {
+                        console.error('main.js: ERROR: Tombol perbesar tidak ditemukan setelah $nextTick.'); 
+                    }
+                }
+            });
+            // --- Akhir Perbaikan ---
         },
         
         displayError(message) {
+            const resultsContainer = document.getElementById('results-container');
             const errorHTML = `
-                <div class="card error-card" id="error-card" style="opacity: 0; transform: translateY(30px);">
-                    <h3 class="section-heading error-heading">
+                <div class="card bg-bg-secondary border border-danger-red rounded-xl p-8 shadow-lg error-card animate-fade-in-up" id="error-card">
+                    <h3 class="section-heading text-2xl font-semibold border-b border-danger-red pb-4 mb-6 flex items-center gap-3 text-danger-red">
                         <i class="fa-solid fa-triangle-exclamation"></i> Input Tidak Valid
                     </h3>
-                    <p class="error-text">${message}</p>
+                    <p class="text-text-primary text-lg">${message}</p>
                 </div>
             `;
-            this.resultsContainer.innerHTML = errorHTML;
-            gsap.to("#error-card", { duration: 0.5, y: 0, opacity: 1, ease: 'power2.out' });
+            resultsContainer.innerHTML = errorHTML;
         },
 
         getHistory() {
@@ -329,82 +308,75 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         renderHistory() {
-            const history = this.getHistory();
-            const scrollPos = this.historyListContainer.scrollTop;
+            console.log('main.js: renderHistory called'); 
+            const historyListContainer = document.getElementById('history-list-container');
+            const scrollPos = historyListContainer.scrollTop;
 
-            const newHistoryHTML = history.length === 0
-                ? `<p class="text-center text-sm text-secondary py-4">Riwayat analisis akan muncul di sini.</p>`
-                : history.map(item => {
-                    const date = new Date(item.created_at);
-                    const formattedDate = date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-                    const formattedTime = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    return `<div class="history-card" data-id="${item.id}">
-                                <div class="history-header">
-                                    <div class="history-title">
-                                        <span class="badge ${item.analysis_type}">${item.analysis_type}</span>
-                                    </div>
-                                    <div class="history-actions">
-                                        <a href="/history-detail" class="btn-icon view-detail-btn" title="Lihat Detail"><i class="fa-solid fa-eye"></i></a>
-                                        <button class="btn-icon delete-item-btn" title="Hapus"><i class="fa-solid fa-trash"></i></button>
-                                    </div>
-                                </div>
-                                <div class="history-meta">
-                                    <i class="fa-solid fa-calendar-alt"></i> ${formattedDate} <i class="fa-solid fa-clock"></i> ${formattedTime}
-                                </div>
-                            </div>`;
-                }).join('');
+            const history = this.getHistory();
+            if (history.length === 0) {
+                historyListContainer.innerHTML = `<p class="text-center text-sm text-text-secondary py-4">Riwayat analisis akan muncul di sini.</p>`;
+                return;
+            }
+
+            let newHistoryHTML = '';
+            history.forEach(item => {
+                const date = new Date(item.created_at);
+                const formattedDate = date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                const formattedTime = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                newHistoryHTML += `
+                    <div class="history-card bg-bg-primary border border-border-color rounded-lg p-5 transition-all duration-200 cursor-pointer hover:bg-bg-tertiary hover:border-accent-blue hover:shadow-md" data-id="${item.id}">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-3 font-semibold text-lg">
+                                <span class="badge px-3 py-1 rounded-full text-xs font-medium border
+                                    ${item.analysis_type === 'centering' ? 'text-badge-centering-text border-badge-centering-border bg-badge-centering-bg' : ''}
+                                    ${item.analysis_type === 'scaling' ? 'text-badge-scaling-text border-badge-scaling-border bg-badge-scaling-bg' : ''}
+                                    ${item.analysis_type === 'euclidean' ? 'text-badge-euclidean-text border-badge-euclidean-border bg-badge-euclidean-bg' : ''}">
+                                    ${item.analysis_type.charAt(0).toUpperCase() + item.analysis_type.slice(1)}
+                                </span>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <a href="#" class="js-view-detail-btn btn-icon w-8 h-8 rounded-md bg-bg-tertiary border border-border-color text-text-secondary flex items-center justify-center hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Lihat Detail" data-id="${item.id}">
+                                    <i class="fa-solid fa-eye"></i> </a>
+                                <button class="js-delete-history-item btn-icon w-8 h-8 rounded-md bg-bg-tertiary border border-border-color text-text-secondary flex items-center justify-center hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Hapus" data-id="${item.id}">
+                                    <i class="fa-solid fa-trash"></i> </button>
+                            </div>
+                        </div>
+                        <div class="text-text-secondary text-xs flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-alt"></i> ${formattedDate}
+                            <i class="fa-solid fa-clock ml-3"></i> ${formattedTime}
+                        </div>
+                    </div>`;
+            });
             
-            this.historyListContainer.innerHTML = newHistoryHTML;
-            
-            this.historyListContainer.scrollTop = scrollPos;
+            historyListContainer.innerHTML = newHistoryHTML;
+            historyListContainer.scrollTop = scrollPos;
+
+            // Delegasi Event HANYA di init() sekarang menangani ini
+            // Tidak ada kode langsung di sini untuk melampirkan listeners
         },
 
-        handleHistoryAction(e) {
-            const target = e.target.closest('a, button');
-            if (!target) return;
-            const historyCard = target.closest('.history-card');
-            if (!historyCard) return;
-            const id = historyCard.dataset.id;
-            
-            if (target.classList.contains('view-detail-btn')) {
-                e.preventDefault();
-                const item = this.getHistory().find(h => h.id == id);
-                if (item) {
-                    sessionStorage.setItem('historyDetailItem_v6', JSON.stringify(item));
-                    window.location.href = '/history-detail';
-                } else {
-                    this.displayMessage('Item riwayat tidak ditemukan!', 'error');
-                }
-            } else if (target.classList.contains('delete-item-btn')) {
-                this.showConfirmation(`Yakin ingin menghapus riwayat #${String(id).slice(-6)}?`, () => {
-                    this.deleteHistoryItem(id);
-                });
-            }
+        handleHistoryAction(e, actionType) {
+            // handleHistoryAction tidak lagi dipanggil langsung oleh tombol
+            // melainkan oleh delegasi event di init(). Logika sudah dipindahkan ke sana.
         },
         
         deleteHistoryItem(id) {
-            const card = this.historyListContainer.querySelector(`.history-card[data-id="${id}"]`);
+            console.log('main.js: deleteHistoryItem called for ID:', id); 
+            const card = document.querySelector(`.history-card[data-id="${id}"]`);
             if (card) {
-                // Sembunyikan dan hapus elemen dari DOM dengan animasi
                 gsap.to(card, {
                     duration: 0.5,
                     opacity: 0,
                     x: -50,
                     ease: 'power2.in',
                     onComplete: () => {
-                        card.remove(); 
-                        // Setelah elemen dihapus sepenuhnya dari DOM, baru perbarui data dan render ulang daftar
                         const history = this.getHistory().filter(h => h.id != id);
                         localStorage.setItem(this.historyKey, JSON.stringify(history));
-                        // Render ulang setelah penundaan singkat untuk memastikan DOM settle
-                        setTimeout(() => {
-                            this.renderHistory(); 
-                            this.displayMessage('Item riwayat berhasil dihapus!', 'success');
-                        }, 50); // Penundaan 50ms
+                        this.renderHistory();
+                        this.displayMessage('Item riwayat berhasil dihapus!', 'success');
                     }
                 });
             } else {
-                // Jika elemen tidak ditemukan, perbarui data dan render ulang tanpa animasi kartu
                 const history = this.getHistory().filter(h => h.id != id);
                 localStorage.setItem(this.historyKey, JSON.stringify(history));
                 this.renderHistory();
@@ -413,8 +385,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         
         copyTableToCSV(btn) {
-            const tableContainer = btn.closest('.table-header').nextElementSibling;
-            const table = tableContainer.querySelector('table');
+            // Fungsi ini sekarang tidak terpicu karena tombolnya sudah dihapus dari HTML
+            // Namun, tetap ada di sini jika Anda ingin menggunakannya lagi di masa depan.
+            console.log("copyTableToCSV dipanggil, tetapi tombol telah dihapus.");
+            const tableContainer = btn.closest('.mb-8').querySelector('.table-container');
+            const table = tableContainer ? tableContainer.querySelector('table') : null;
             if (!table) {
                 this.displayMessage('Tidak ada tabel yang dapat disalin.', 'error');
                 return;
@@ -425,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             csv.push(headers);
 
             table.querySelectorAll('tr').forEach(row => {
-                if (row.querySelector('th')) return; 
+                if (row.querySelector('th')) return;
                 const rowData = Array.from(row.querySelectorAll('td')).map(cell => `"${cell.innerText.trim().replace(/"/g, '""')}"`).join(',');
                 csv.push(rowData);
             });
@@ -436,51 +411,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 .catch(err => {
                     this.displayMessage('Gagal menyalin tabel.', 'error');
-                    console.error('Failed to copy: ', err);
                 });
         },
 
-        showConfirmation(text, onConfirm) {
-            this.modalText.textContent = text;
-            this.showModal(this.modal);
-            this.modalConfirmBtn.onclick = () => { onConfirm(); this.hideModal(this.modal); };
-        },
+        displayMessage(message, type = 'info') {
+            const messageBox = document.getElementById('message-box');
+            if (messageBox) { // Ensure messageBox exists, it's defined in base.html now
+                messageBox.textContent = '';
+                messageBox.classList.remove('bg-success-green', 'bg-danger-red', 'bg-accent-blue', 'show');
 
-        showModal(modal) {
-            modal.classList.add('active');
-            gsap.fromTo(modal.querySelector('.modal-content'), { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'power2.out' });
-        },
-        
-        hideModal(modal) {
-            gsap.to(modal, { opacity: 0, duration: 0.3, onComplete: () => modal.classList.remove('active') });
-        },
+                let iconClass = '';
+                if (type === 'success') {
+                    messageBox.classList.add('bg-success-green');
+                    iconClass = 'fa-check-circle';
+                } else if (type === 'error') {
+                    messageBox.classList.add('fa-exclamation-triangle');
+                } else {
+                    messageBox.classList.add('fa-info-circle');
+                }
 
-        displayMessage(message, type = 'info', duration = 3000) {
-            this.messageBox.textContent = '';
-            this.messageBox.classList.remove('bg-success-green', 'bg-danger-red', 'bg-accent-blue');
+                const icon = document.createElement('i');
+                icon.classList.add('fa-solid', iconClass);
+                messageBox.appendChild(icon);
+                messageBox.innerHTML += ` ${message}`;
 
-            const icon = document.createElement('i');
-            icon.classList.add('fa-solid');
-
-            if (type === 'success') {
-                this.messageBox.classList.add('bg-success-green');
-                icon.classList.add('fa-check-circle');
-            } else if (type === 'error') {
-                this.messageBox.classList.add('bg-danger-red');
-                icon.classList.add('fa-exclamation-triangle');
-            } else {
-                this.messageBox.classList.add('bg-accent-blue');
-                icon.classList.add('fa-info-circle');
+                messageBox.classList.add('show');
+                setTimeout(() => {
+                    messageBox.classList.remove('show');
+                }, 3000);
             }
-
-            this.messageBox.appendChild(icon);
-            this.messageBox.innerHTML += ` ${message}`;
-
-            this.messageBox.classList.add('show');
-            setTimeout(() => {
-                this.messageBox.classList.remove('show');
-            }, duration);
         }
-    };
-    App.init();
+    }));
 });

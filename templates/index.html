@@ -1,95 +1,97 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmic Glass Clustering</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <header class="text-center my-8">
-            <h1 class="text-5xl font-bold">Cosmic Glass Clustering</h1>
-            <p class="text-lg text-secondary mt-2">Visualisasikan Pola Data Anda dengan Elegan dan Akurat.</p>
-        </header>
+{% extends "base.html" %}
 
-        <div class="main-layout">
-            <main id="main-content" class="space-y-10">
-                <div class="card" id="form-card">
-                    <h2 class="section-heading"><i class="fa-solid fa-satellite-dish"></i>Panel Kontrol Analisis</h2>
-                    <form id="calculation-form" class="space-y-8">
-                        <div id="input-fields" class="space-y-6">
-                            <div class="input-group space-y-2" id="input-group-1">
-                                <div>
-                                    <label class="input-label" for="column-name-1">Nama Variabel 1</label>
-                                    <input type="text" id="column-name-1" name="columns[]" placeholder="Nama Variabel (cth: Luminositas)" required class="input-field">
-                                </div>
-                                <div>
-                                    <label class="input-label" for="values-1">Nilai Variabel 1</label>
-                                    <input type="text" id="values-1" name="values[]" placeholder="Nilai (dipisah koma, cth: 1,2,3)" required class="input-field">
-                                </div>
+{% block title %}Cosmic Glass Clustering - Home{% endblock %}
+
+{% block content %}
+<header class="text-center my-10 animate-fade-in-up">
+    <h1 class="text-6xl font-bold tracking-tight bg-gradient-to-r from-accent-blue to-accent-blue-hover text-transparent bg-clip-text mb-4">
+        Cosmic Glass Clustering
+    </h1>
+    <p class="text-xl text-text-secondary max-w-2xl mx-auto">
+        Visualisasikan Pola Data Anda dengan Elegan dan Akurat.
+    </p>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <main id="main-content" class="md:col-span-2 space-y-10">
+        <div class="card bg-bg-secondary border border-border-color rounded-xl p-8 shadow-lg transition-all duration-300 hover:border-border-light hover:shadow-xl animate-fade-in-up" id="form-card">
+            <h2 class="text-2xl font-semibold border-b border-border-color pb-4 mb-6 flex items-center gap-3 text-text-primary">
+                <i class="fa-solid fa-satellite-dish text-accent-blue"></i>Panel Kontrol Analisis
+            </h2>
+            <form id="calculation-form" class="space-y-8" x-data="appData()" @submit.prevent="handleFormSubmit($event)">
+                <div id="input-fields" class="space-y-6">
+                    <template x-for="(field, index) in inputFields" :key="index">
+                        <div class="input-group space-y-3" :data-index="index">
+                            <template x-if="index > 0">
+                                <hr class="border-t border-border-color opacity-30 my-4">
+                            </template>
+                            <div>
+                                <label class="input-label font-medium text-text-secondary text-sm mb-2 block" :for="`column-name-${index}`">Nama Variabel <span x-text="index + 1"></span></label>
+                                <input type="text" :id="`column-name-${index}`" name="columns[]" placeholder="Nama Variabel (cth: Luminositas)" required class="input-field w-full px-4 py-3 bg-bg-primary border border-border-color rounded-lg text-base text-text-primary transition-all duration-200 focus:outline-none focus:border-accent-blue-hover focus:shadow-[0_0_0_4px_var(--glow-blue)]">
+                            </div>
+                            <div>
+                                <label class="input-label font-medium text-text-secondary text-sm mb-2 block" :for="`values-${index}`">Nilai Variabel <span x-text="index + 1"></span></label>
+                                <input type="text" :id="`values-${index}`" name="values[]" placeholder="Nilai (dipisah koma, cth: 1,2,3)" required class="input-field w-full px-4 py-3 bg-bg-primary border border-border-color rounded-lg text-base text-text-primary transition-all duration-200 focus:outline-none focus:border-accent-blue-hover focus:shadow-[0_0_0_4px_var(--glow-blue)]">
                             </div>
                         </div>
+                    </template>
+                </div>
 
-                        <div class="flex flex-wrap gap-4 justify-center sm:justify-start">
-                            <button type="button" id="add-variable-btn" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> Tambah Variabel</button>
-                            <button type="button" id="remove-variable-btn" class="btn btn-secondary"><i class="fa-solid fa-minus"></i> Hapus Variabel Terakhir</button>
-                        </div>
-                        
-                        <div>
-                            <label for="analysis-type-select" class="input-label">Pilih Jenis Analisis</label>
-                            <select id="analysis-type-select" name="analysis_type" class="input-field">
-                                <option value="centering">Centering (Pemusatan Data)</option>
-                                <option value="scaling">Scaling (Normalisasi Min-Max)</option>
-                                <option value="euclidean">Euclidean (Matriks Jarak & Dendrogram)</option>
-                            </select>
-                        </div>
-                        
-                        <div id="scaling-options" class="hidden space-y-4">
-                            <label class="input-label">Opsi Scaling (Normalisasi Min-Max ke Rentang Baru)</label>
-                            <div class="grid grid-cols-2 gap-4">
-                                <input type="number" step="any" name="minnew" placeholder="Nilai Minimum Baru (cth: 0)" class="input-field">
-                                <input type="number" step="any" name="maxnew" placeholder="Nilai Maksimum Baru (cth: 1)" class="input-field">
-                            </div>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary w-full p-4 text-lg">
-                            <span id="submit-text"><i class="fa-solid fa-meteor"></i> Jalankan Analisis</span>
-                        </button>
-                    </form>
+                <div class="flex flex-wrap gap-4 justify-center sm:justify-start">
+                    <button type="button" @click="addInput()" class="btn btn-secondary inline-flex items-center justify-center px-5 py-3 text-base font-semibold rounded-lg border border-border-color text-text-primary bg-bg-tertiary hover:border-border-light hover:bg-[#30363D] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:ring-offset-2 focus:ring-offset-bg-primary">
+                        <i class="fa-solid fa-plus mr-2"></i> Tambah Variabel
+                    </button>
+                    <button type="button" @click="removeInput()" :disabled="inputFields.length <= 1" class="btn btn-secondary inline-flex items-center justify-center px-5 py-3 text-base font-semibold rounded-lg border border-border-color text-text-primary bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed hover:border-border-light hover:bg-[#30363D] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:ring-offset-2 focus:ring-offset-bg-primary">
+                        <i class="fa-solid fa-minus mr-2"></i> Hapus Variabel Terakhir
+                    </button>
                 </div>
-                
-                <div id="results-container">
-                </div>
-            </main>
-            
-            <aside id="sidebar">
-                <div class="card">
-                    <h2 class="section-heading"><i class="fa-solid fa-clock-rotate-left"></i>Riwayat Analisis</h2>
-                    <div id="history-list-container" class="space-y-4">
-                        <p class="text-center text-sm text-secondary py-4">Riwayat analisis akan muncul di sini.</p>
+
+                <div>
+                    <label for="analysis-type-select" class="input-label font-medium text-text-secondary text-sm mb-2 block">Pilih Jenis Analisis</label>
+                    <div class="relative">
+                        <select id="analysis-type-select" name="analysis_type" x-model="analysisType" @change="toggleScalingOptions()" class="input-field appearance-none w-full px-4 py-3 bg-bg-primary border border-border-color rounded-lg text-base text-text-primary transition-all duration-200 focus:outline-none focus:border-accent-blue-hover focus:shadow-[0_0_0_4px_var(--glow-blue)] pr-10">
+                            <option value="centering">Centering (Pemusatan Data)</option>
+                            <option value="scaling">Scaling (Normalisasi Min-Max)</option>
+                            <option value="euclidean">Euclidean (Matriks Jarak & Dendrogram)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-text-secondary">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
                     </div>
                 </div>
-            </aside>
-        </div>
-    </div>
 
-    <div id="confirmation-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-icon"><i class="fa-solid fa-shield-halved"></i></div>
-            <h3 id="modal-title" class="modal-title">Konfirmasi Tindakan</h3>
-            <p id="modal-text" class="modal-text">Apakah Anda yakin ingin melanjutkan?</p>
-            <div class="modal-actions">
-                <button id="modal-cancel-btn" class="btn btn-secondary">Batal</button>
-                <button id="modal-confirm-btn" class="btn btn-danger">Ya, Hapus</button>
+                <div id="scaling-options" x-show="analysisType === 'scaling'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 h-0 mt-0" x-transition:enter-end="opacity-100 h-auto mt-6" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 h-auto mt-6" x-transition:leave-end="opacity-0 h-0 mt-0" class="space-y-4 overflow-hidden" :class="{'hidden': analysisType !== 'scaling'}">
+                    <label class="input-label font-medium text-text-secondary text-sm block">Opsi Scaling (Normalisasi Min-Max ke Rentang Baru)</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="number" step="any" name="minnew" placeholder="Nilai Minimum Baru (cth: 0)" class="input-field w-full px-4 py-3 bg-bg-primary border border-border-color rounded-lg text-base text-text-primary transition-all duration-200 focus:outline-none focus:border-accent-blue-hover focus:shadow-[0_0_0_4px_var(--glow-blue)]">
+                        <input type="number" step="any" name="maxnew" placeholder="Nilai Maksimum Baru (cth: 1)" class="input-field w-full px-4 py-3 bg-bg-primary border border-border-color rounded-lg text-base text-text-primary transition-all duration-200 focus:outline-none focus:border-accent-blue-hover focus:shadow-[0_0_0_4px_var(--glow-blue)]">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full p-4 text-lg bg-accent-blue text-white font-semibold rounded-lg border border-accent-blue hover:bg-accent-blue-hover hover:border-accent-blue-hover transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-blue focus:ring-offset-2 focus:ring-offset-bg-primary disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span id="submit-text" class="flex items-center justify-center">
+                        <i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis
+                    </span>
+                </button>
+            </form>
+        </div>
+
+        <div id="results-container">
+            </div>
+    </main>
+
+    <aside id="sidebar" class="md:col-span-1"> <div class="card bg-bg-secondary border border-border-color rounded-xl p-8 shadow-lg transition-all duration-300 hover:border-border-light hover:shadow-xl animate-fade-in-up">
+            <h2 class="text-2xl font-semibold border-b border-border-color pb-4 mb-6 flex items-center gap-3 text-text-primary">
+                <i class="fa-solid fa-clock-rotate-left text-accent-blue"></i>Riwayat Analisis
+            </h2>
+            <div id="history-list-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <p class="text-center text-sm text-text-secondary py-4">Riwayat analisis akan muncul di sini.</p>
             </div>
         </div>
-    </div>
+    </aside>
+</div>
+{% endblock %}
 
-    <div id="message-box" class="message-box"></div>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}

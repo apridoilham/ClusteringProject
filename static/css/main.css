@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Custom styles not easily done with pure Tailwind or for specific overrides */
+.data-table th, .data-table td {
+    @apply px-6 py-4 border-b border-border-color text-center; /* Semua sel (heading & data) rata tengah */
+    font-size: 0.95rem; /* Ukuran font standar untuk sel data */
+}
+
+.data-table th {
+    @apply text-text-secondary uppercase font-semibold bg-bg-tertiary sticky top-0 z-10;
+    font-size: 1rem; /* Ukuran font heading diperbesar sedikit */
+}
+
+.data-table td {
+    @apply text-text-primary bg-bg-secondary;
+}
+
+.data-table tr:nth-child(even) td {
+    @apply bg-bg-primary;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.modal-content {
+    animation: fade-in-up 0.3s ease-out forwards;
+}
+
+.modal-overlay.active .modal-content {
+    animation: none; /* Reset animation when re-shown */
+}
+
+.modal-overlay.active {
+    opacity: 1;
+}
+
+.message-box.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-10px);
+}
