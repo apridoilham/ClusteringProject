@@ -708,16 +708,16 @@ video {
   margin-top: 0px;
 }
 
+.mt-12 {
+  margin-top: 3rem;
+}
+
 .mt-4 {
   margin-top: 1rem;
 }
 
 .mt-6 {
   margin-top: 1.5rem;
-}
-
-.mt-12 {
-  margin-top: 3rem;
 }
 
 .block {
@@ -1224,14 +1224,14 @@ video {
   padding-bottom: 1rem;
 }
 
-.py-8 {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-
 .py-6 {
   padding-top: 1.5rem;
   padding-bottom: 1.5rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
 
 .pb-4 {
@@ -1332,6 +1332,11 @@ video {
   color: rgb(56 139 253 / var(--tw-text-opacity, 1));
 }
 
+.text-accent-blue-hover {
+  --tw-text-opacity: 1;
+  color: rgb(88 166 255 / var(--tw-text-opacity, 1));
+}
+
 .text-badge-centering-text {
   --tw-text-opacity: 1;
   color: rgb(88 166 255 / var(--tw-text-opacity, 1));
@@ -1369,11 +1374,6 @@ video {
 .text-white {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
-}
-
-.text-accent-blue-hover {
-  --tw-text-opacity: 1;
-  color: rgb(88 166 255 / var(--tw-text-opacity, 1));
 }
 
 .opacity-0 {
@@ -1452,8 +1452,6 @@ video {
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
-/* Custom styles not easily done with pure Tailwind or for specific overrides */
-
 .data-table th, .data-table td {
   border-bottom-width: 1px;
   --tw-border-opacity: 1;
@@ -1463,9 +1461,7 @@ video {
   padding-top: 1rem;
   padding-bottom: 1rem;
   text-align: center;
-  /* Semua sel (heading & data) rata tengah */
   font-size: 0.95rem;
-  /* Ukuran font standar untuk sel data */
 }
 
 .data-table th {
@@ -1479,7 +1475,6 @@ video {
   --tw-text-opacity: 1;
   color: rgb(125 133 144 / var(--tw-text-opacity, 1));
   font-size: 1rem;
-  /* Ukuran font heading diperbesar sedikit */
 }
 
 .data-table td {
@@ -1504,7 +1499,6 @@ video {
 
 .modal-overlay.active .modal-content {
   animation: none;
-  /* Reset animation when re-shown */
 }
 
 .modal-overlay.active {

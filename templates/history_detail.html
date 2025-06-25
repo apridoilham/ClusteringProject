@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Detail Riwayat Analisis{% endblock %}
+{% block title %}Analysis History Detail{% endblock %}
 
 {% block content %}
 <div id="detail-card">
     <div class="flex justify-between items-center mb-8">
         <a href="/" class="btn btn-secondary inline-flex items-center px-5 py-3 text-base font-semibold rounded-lg border border-border-color text-text-primary bg-bg-tertiary hover:border-border-light hover:bg-[#30363D] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:ring-offset-2 focus:ring-offset-bg-primary" id="return-dashboard-btn">
-            <i class="fa-solid fa-arrow-left mr-2"></i> Kembali
+            <i class="fa-solid fa-arrow-left mr-2"></i> Back
         </a>
         <span id="detail-badge" class="badge px-4 py-2 rounded-full text-xs font-medium border"
               x-data="historyDetail()"
               :class="{
-                  'centering text-badge-centering-text border-badge-centering-border bg-badge-centering-bg': item.analysis_type === 'centering',
-                  'scaling text-badge-scaling-text border-badge-scaling-border bg-badge-scaling-bg': item.analysis_type === 'scaling',
-                  'euclidean text-badge-euclidean-text border-badge-euclidean-border bg-badge-euclidean-bg': item.analysis_type === 'euclidean'
+                    'centering text-badge-centering-text border-badge-centering-border bg-badge-centering-bg': item.analysis_type === 'centering',
+                    'scaling text-badge-scaling-text border-badge-scaling-border bg-badge-scaling-bg': item.analysis_type === 'scaling',
+                    'euclidean text-badge-euclidean-text border-badge-euclidean-border bg-badge-euclidean-bg': item.analysis_type === 'euclidean'
               }">
               <span x-text="item ? (item.analysis_type.charAt(0).toUpperCase() + item.analysis_type.slice(1)) : ''"></span>
         </span>

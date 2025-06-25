@@ -5,57 +5,44 @@ document.addEventListener('alpine:init', () => {
         analysisType: 'centering',
         
         init() {
-            console.log('appData: init called'); // DEBUG
             this.renderHistory();
             this.introAnimation();
-
-            // --- Event Delegation untuk tombol riwayat (Lihat Detail & Hapus) ---
-            // Listener ini dipasang SEKALI saat aplikasi diinisialisasi
             const historyListContainer = document.getElementById('history-list-container');
             if (historyListContainer) {
                 historyListContainer.addEventListener('click', (e) => {
-                    // Cek apakah yang diklik adalah tombol delete atau leluhur terdekatnya
                     const clickedDeleteButton = e.target.closest('.js-delete-history-item');
                     if (clickedDeleteButton) {
-                        e.preventDefault(); // Mencegah aksi default (misal, navigasi jika itu link)
+                        e.preventDefault();
                         const id = clickedDeleteButton.dataset.id;
-                        console.log('main.js: Tombol delete (via delegasi) diklik untuk ID:', id); // DEBUG
-                        window.dispatchEvent(new CustomEvent('modal-open', { // Memicu modal konfirmasi
+                        window.dispatchEvent(new CustomEvent('modal-open', {
                             detail: {
-                                text: `Yakin ingin menghapus riwayat #${String(id).slice(-6)}?`,
-                                onConfirm: () => this.deleteHistoryItem(id) // Fungsi yang akan dijalankan jika dikonfirmasi
+                                text: `Are you sure you want to delete history #${String(id).slice(-6)}?`,
+                                onConfirm: () => this.deleteHistoryItem(id)
                             }
                         }));
-                        return; // Penting: Hentikan pemrosesan lebih lanjut jika tombol delete diklik
+                        return;
                     }
-
-                    // Cek apakah yang diklik adalah tombol view detail atau leluhur terdekatnya
                     const viewButton = e.target.closest('.js-view-detail-btn');
-                    if (viewButton) { 
+                    if (viewButton) {
                         e.preventDefault();
                         const id = viewButton.dataset.id;
-                        console.log('main.js: Tombol view detail (via delegasi) diklik untuk ID:', id); // DEBUG
-                        // Langsung panggil logika navigasi untuk view detail
                         const item = this.getHistory().find(h => h.id == id);
                         if (item) {
                             sessionStorage.setItem('historyDetailItem_v6', JSON.stringify(item));
                             window.location.href = '/history-detail';
                         } else {
-                            this.displayMessage('Item riwayat tidak ditemukan!', 'error');
+                            this.displayMessage('History item not found!', 'error');
                         }
                     }
                 });
             }
-            // --- Akhir Event Delegation ---
         },
 
         introAnimation() {
             gsap.set(["#form-card", "#sidebar .card"], { opacity: 0, y: 30 });
             gsap.set(["header h1", "header p"], { opacity: 0, y: -20 });
-
             gsap.to("header h1", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out" });
             gsap.to("header p", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.2 });
-
             gsap.to("#form-card", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.4 });
             gsap.to("#sidebar .card", { duration: 0.8, y: 0, opacity: 1, ease: "power3.out", delay: 0.6 });
         },
@@ -84,21 +71,17 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        toggleScalingOptions() {
-            // Alpine.js handles the 'hidden' class and transitions based on analysisType
-        },
+        toggleScalingOptions() {},
 
         async handleFormSubmit(event) {
             event.preventDefault();
             await this.clearResults();
-
             const form = event.target;
             const columnInputs = Array.from(form.querySelectorAll('input[name="columns[]"]'));
             const valueInputs = Array.from(form.querySelectorAll('input[name="values[]"]'));
             let firstValueCount = -1;
             let validationError = null;
             let hasValidData = false;
-
             const inputDataForValidation = [];
             for(let i = 0; i < columnInputs.length; i++) {
                 const colName = columnInputs[i].value.trim();
@@ -107,60 +90,51 @@ document.addEventListener('alpine:init', () => {
                     inputDataForValidation.push({ colName, valString });
                 }
             }
-
             if (inputDataForValidation.length === 0) {
-                validationError = 'Mohon masukkan setidaknya satu data variabel yang valid.';
+                validationError = 'Please enter at least one valid variable data.';
             } else {
                 for (const { colName, valString } of inputDataForValidation) {
                     if (!colName) {
-                        validationError = 'Nama variabel tidak boleh kosong untuk setiap baris data yang diisi.';
+                        validationError = 'Variable name cannot be empty for any filled data row.';
                         break;
                     }
                     if (!valString) {
-                        validationError = `Nilai untuk variabel "${colName}" tidak boleh kosong.`;
+                        validationError = `Values for variable "${colName}" cannot be empty.`;
                         break;
                     }
-
                     if (/[^0-9,\s-]/.test(valString)) {
-                        validationError = `Nilai untuk variabel "${colName}" mengandung karakter tidak valid. Gunakan hanya bilangan bulat, koma, spasi, dan tanda hubung (-).`;
+                        validationError = `Values for variable "${colName}" contain invalid characters. Use only integers, commas, spaces, and hyphens (-).`;
                         break;
                     }
-
                     const values = valString.split(/[, ]+/).map(v => v.trim()).filter(v => v !== '');
                     if (values.length === 0) {
-                        validationError = `Nilai untuk variabel "${colName}" tidak boleh kosong setelah diparsing.`;
+                        validationError = `Values for variable "${colName}" cannot be empty after parsing.`;
                         break;
                     }
-
                     if (values.some(v => !Number.isInteger(parseFloat(v)))) {
-                        validationError = `Nilai untuk variabel "${colName}" mengandung data yang bukan bilangan bulat.`;
+                        validationError = `Values for variable "${colName}" contain non-integer data.`;
                         break;
                     }
-
                     if (firstValueCount === -1) {
                         firstValueCount = values.length;
                     } else if (values.length !== firstValueCount) {
-                        validationError = 'Jumlah nilai untuk setiap variabel harus sama (konsisten).';
+                        validationError = 'The number of values for each variable must be consistent.';
                         break;
                     }
                     hasValidData = true;
                 }
             }
-            
             if (!hasValidData && !validationError) {
-                validationError = 'Mohon masukkan setidaknya satu data variabel yang valid.';
+                validationError = 'Please enter at least one valid variable data.';
             }
-
             if (validationError) {
                 this.displayError(validationError);
                 return;
             }
-
             const submitBtn = form.querySelector('button[type="submit"]');
             const submitBtnText = form.querySelector('#submit-text');
             submitBtn.disabled = true;
-            submitBtnText.innerHTML = `<span class="loading-spinner w-5 h-5 mr-3 border-2 border-white border-t-accent-blue rounded-full animate-spin"></span> Memproses...`;
-
+            submitBtnText.innerHTML = `<span class="loading-spinner w-5 h-5 mr-3 border-2 border-white border-t-accent-blue rounded-full animate-spin"></span> Processing...`;
             const formData = new FormData(form);
             const data = {
                 columns: formData.getAll('columns[]').filter((_, i) => columnInputs[i].value.trim() !== '' && valueInputs[i].value.trim() !== ''),
@@ -169,43 +143,38 @@ document.addEventListener('alpine:init', () => {
                 minnew: formData.get('minnew'),
                 maxnew: formData.get('maxnew'),
             };
-
             if (data.analysis_type === 'scaling') {
                 const minNewVal = parseFloat(data.minnew);
                 const maxNewVal = parseFloat(data.maxnew);
                 if (isNaN(minNewVal) || isNaN(maxNewVal)) {
-                    this.displayError('Nilai Minimum Baru dan Maksimum Baru harus berupa angka untuk Scaling.');
+                    this.displayError('New Minimum and New Maximum values must be numbers for Scaling.');
                     submitBtn.disabled = false;
-                    submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis`;
+                    submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Run Analysis`;
                     return;
                 }
                 if (minNewVal >= maxNewVal) {
-                    this.displayError('Nilai Minimum Baru harus lebih kecil dari Nilai Maksimum Baru untuk Scaling.');
+                    this.displayError('New Minimum value must be less than New Maximum value for Scaling.');
                     submitBtn.disabled = false;
-                    submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis`;
+                    submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Run Analysis`;
                     return;
                 }
             }
-
             try {
                 const response = await fetch('/calculate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 const result = await response.json();
-
                 if (!response.ok) {
-                    const errorMsg = result.error || 'Terjadi kesalahan tidak dikenal saat memproses analisis.';
+                    const errorMsg = result.error || 'An unknown error occurred while processing the analysis.';
                     throw new Error(errorMsg);
                 }
-                
                 this.displayResult(result);
                 const historyEntry = { ...data, ...result, id: Date.now(), created_at: result.created_at };
                 this.saveToHistory(historyEntry);
-                this.renderHistory(); 
-
+                this.renderHistory();
             } catch (error) {
                 this.displayError(error.message);
             } finally {
                 submitBtn.disabled = false;
-                submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Jalankan Analisis`;
+                submitBtnText.innerHTML = `<i class="fa-solid fa-meteor mr-3"></i> Run Analysis`;
             }
         },
 
@@ -235,7 +204,7 @@ document.addEventListener('alpine:init', () => {
                     ${result.analysis_type !== 'euclidean' ? `
                         <div class="mb-8">
                             <div class="flex justify-between items-center border-b border-border-color pb-4 mb-4">
-                                <h3 class="text-xl font-semibold text-text-primary">Hasil ${result.analysis_type.charAt(0).toUpperCase() + result.analysis_type.slice(1)}</h3>
+                                <h3 class="text-xl font-semibold text-text-primary">${result.analysis_type.charAt(0).toUpperCase() + result.analysis_type.slice(1)} Results</h3>
                                 </div>
                             <div class="table-container overflow-x-auto rounded-lg border border-border-color">
                                 ${result.result_data_html}
@@ -244,7 +213,7 @@ document.addEventListener('alpine:init', () => {
                     ${result.dist_matrix_html ? `
                         <div class="mb-8">
                             <div class="flex justify-between items-center border-b border-border-color pb-4 mb-4">
-                                <h3 class="text-xl font-semibold text-text-primary">Matriks Jarak Euclidean</h3>
+                                <h3 class="text-xl font-semibold text-text-primary">Euclidean Distance Matrix</h3>
                                 </div>
                             <div class="table-container overflow-x-auto rounded-lg border border-border-color">
                                 ${result.dist_matrix_html}
@@ -253,35 +222,28 @@ document.addEventListener('alpine:init', () => {
                     ${result.plot_url ? `
                         <div id="dendrogram-section">
                             <div class="flex justify-between items-center border-b border-border-color pb-4 mb-6">
-                                <h3 class="section-heading text-2xl font-semibold flex items-center gap-3 text-text-primary"><i class="fa-solid fa-chart-line text-accent-blue"></i>Dendrogram Klastering</h3>
-                                <button class="js-enlarge-dendrogram btn-icon w-10 h-10 rounded-lg bg-bg-tertiary border border-border-color text-text-secondary hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Perbesar Dendrogram" data-image-url="data:image/png;base64,${result.plot_url}">
+                                <h3 class="section-heading text-2xl font-semibold flex items-center gap-3 text-text-primary"><i class="fa-solid fa-chart-line text-accent-blue"></i>Clustering Dendrogram</h3>
+                                <button class="js-enlarge-dendrogram btn-icon w-10 h-10 rounded-lg bg-bg-tertiary border border-border-color text-text-secondary hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Enlarge Dendrogram" data-image-url="data:image/png;base64,${result.plot_url}">
                                     <i class="fa-solid fa-expand"></i>
                                 </button>
                             </div>
                             <div class="dendrogram-wrapper rounded-xl p-6 bg-bg-secondary border border-border-color text-center overflow-x-auto">
-                                <img src="data:image/png;base64,${result.plot_url}" alt="Dendrogram Hasil Klastering" class="block max-w-full h-auto mx-auto rounded-lg shadow-md">
+                                <img src="data:image/png;base64,${result.plot_url}" alt="Clustering Result Dendrogram" class="block max-w-full h-auto mx-auto rounded-lg shadow-md">
                             </div>
                         </div>` : ''}
                 </div>`;
             resultsContainer.innerHTML = contentHTML;
-
-            // --- Attach event listener setelah innerHTML diperbarui ---
-            this.$nextTick(() => { 
+            this.$nextTick(() => {
                 if (result.plot_url) {
                     const enlargeButton = resultsContainer.querySelector('.js-enlarge-dendrogram');
                     if (enlargeButton) {
-                        console.log('main.js: Tombol perbesar ditemukan setelah $nextTick. Mencoba attach listener.'); 
                         enlargeButton.addEventListener('click', (e) => {
                             const imageUrl = e.currentTarget.dataset.imageUrl;
-                            console.log('main.js: Tombol diklik, memicu open-image-modal dengan URL:', imageUrl.substring(0, 50) + '...'); 
                             window.dispatchEvent(new CustomEvent('open-image-modal', { detail: { imageUrl: imageUrl } }));
                         });
-                    } else {
-                        console.error('main.js: ERROR: Tombol perbesar tidak ditemukan setelah $nextTick.'); 
                     }
                 }
             });
-            // --- Akhir Perbaikan ---
         },
         
         displayError(message) {
@@ -289,7 +251,7 @@ document.addEventListener('alpine:init', () => {
             const errorHTML = `
                 <div class="card bg-bg-secondary border border-danger-red rounded-xl p-8 shadow-lg error-card animate-fade-in-up" id="error-card">
                     <h3 class="section-heading text-2xl font-semibold border-b border-danger-red pb-4 mb-6 flex items-center gap-3 text-danger-red">
-                        <i class="fa-solid fa-triangle-exclamation"></i> Input Tidak Valid
+                        <i class="fa-solid fa-triangle-exclamation"></i> Invalid Input
                     </h3>
                     <p class="text-text-primary text-lg">${message}</p>
                 </div>
@@ -308,21 +270,18 @@ document.addEventListener('alpine:init', () => {
         },
 
         renderHistory() {
-            console.log('main.js: renderHistory called'); 
             const historyListContainer = document.getElementById('history-list-container');
             const scrollPos = historyListContainer.scrollTop;
-
             const history = this.getHistory();
             if (history.length === 0) {
-                historyListContainer.innerHTML = `<p class="text-center text-sm text-text-secondary py-4">Riwayat analisis akan muncul di sini.</p>`;
+                historyListContainer.innerHTML = `<p class="text-center text-sm text-text-secondary py-4">Analysis history will appear here.</p>`;
                 return;
             }
-
             let newHistoryHTML = '';
             history.forEach(item => {
                 const date = new Date(item.created_at);
-                const formattedDate = date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-                const formattedTime = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                const formattedDate = date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+                const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 newHistoryHTML += `
                     <div class="history-card bg-bg-primary border border-border-color rounded-lg p-5 transition-all duration-200 cursor-pointer hover:bg-bg-tertiary hover:border-accent-blue hover:shadow-md" data-id="${item.id}">
                         <div class="flex justify-between items-center mb-3">
@@ -335,9 +294,9 @@ document.addEventListener('alpine:init', () => {
                                 </span>
                             </div>
                             <div class="flex gap-2 items-center">
-                                <a href="#" class="js-view-detail-btn btn-icon w-8 h-8 rounded-md bg-bg-tertiary border border-border-color text-text-secondary flex items-center justify-center hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Lihat Detail" data-id="${item.id}">
+                                <a href="#" class="js-view-detail-btn btn-icon w-8 h-8 rounded-md bg-bg-tertiary border border-border-color text-text-secondary flex items-center justify-center hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="View Details" data-id="${item.id}">
                                     <i class="fa-solid fa-eye"></i> </a>
-                                <button class="js-delete-history-item btn-icon w-8 h-8 rounded-md bg-bg-tertiary border border-border-color text-text-secondary flex items-center justify-center hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Hapus" data-id="${item.id}">
+                                <button class="js-delete-history-item btn-icon w-8 h-8 rounded-md bg-bg-tertiary border border-border-color text-text-secondary flex items-center justify-center hover:text-text-primary hover:border-border-light hover:bg-[#30363D] transition-all duration-200" title="Delete" data-id="${item.id}">
                                     <i class="fa-solid fa-trash"></i> </button>
                             </div>
                         </div>
@@ -347,21 +306,13 @@ document.addEventListener('alpine:init', () => {
                         </div>
                     </div>`;
             });
-            
             historyListContainer.innerHTML = newHistoryHTML;
             historyListContainer.scrollTop = scrollPos;
-
-            // Delegasi Event HANYA di init() sekarang menangani ini
-            // Tidak ada kode langsung di sini untuk melampirkan listeners
         },
 
-        handleHistoryAction(e, actionType) {
-            // handleHistoryAction tidak lagi dipanggil langsung oleh tombol
-            // melainkan oleh delegasi event di init(). Logika sudah dipindahkan ke sana.
-        },
+        handleHistoryAction(e, actionType) {},
         
         deleteHistoryItem(id) {
-            console.log('main.js: deleteHistoryItem called for ID:', id); 
             const card = document.querySelector(`.history-card[data-id="${id}"]`);
             if (card) {
                 gsap.to(card, {
@@ -373,53 +324,46 @@ document.addEventListener('alpine:init', () => {
                         const history = this.getHistory().filter(h => h.id != id);
                         localStorage.setItem(this.historyKey, JSON.stringify(history));
                         this.renderHistory();
-                        this.displayMessage('Item riwayat berhasil dihapus!', 'success');
+                        this.displayMessage('History item successfully deleted!', 'success');
                     }
                 });
             } else {
                 const history = this.getHistory().filter(h => h.id != id);
                 localStorage.setItem(this.historyKey, JSON.stringify(history));
                 this.renderHistory();
-                this.displayMessage('Item riwayat berhasil dihapus!', 'success');
+                this.displayMessage('History item successfully deleted!', 'success');
             }
         },
         
         copyTableToCSV(btn) {
-            // Fungsi ini sekarang tidak terpicu karena tombolnya sudah dihapus dari HTML
-            // Namun, tetap ada di sini jika Anda ingin menggunakannya lagi di masa depan.
-            console.log("copyTableToCSV dipanggil, tetapi tombol telah dihapus.");
             const tableContainer = btn.closest('.mb-8').querySelector('.table-container');
             const table = tableContainer ? tableContainer.querySelector('table') : null;
             if (!table) {
-                this.displayMessage('Tidak ada tabel yang dapat disalin.', 'error');
+                this.displayMessage('No table found to copy.', 'error');
                 return;
             }
-
             let csv = [];
             const headers = Array.from(table.querySelectorAll('th')).map(th => `"${th.innerText.trim().replace(/"/g, '""')}"`).join(',');
             csv.push(headers);
-
             table.querySelectorAll('tr').forEach(row => {
                 if (row.querySelector('th')) return;
                 const rowData = Array.from(row.querySelectorAll('td')).map(cell => `"${cell.innerText.trim().replace(/"/g, '""')}"`).join(',');
                 csv.push(rowData);
             });
-            
             navigator.clipboard.writeText(csv.join('\n'))
                 .then(() => {
-                    this.displayMessage('Tabel berhasil disalin ke clipboard!', 'success');
+                    this.displayMessage('Table copied to clipboard!', 'success');
                 })
                 .catch(err => {
-                    this.displayMessage('Gagal menyalin tabel.', 'error');
+                    this.displayMessage('Failed to copy table.', 'error');
                 });
         },
 
         displayMessage(message, type = 'info') {
             const messageBox = document.getElementById('message-box');
-            if (messageBox) { // Ensure messageBox exists, it's defined in base.html now
+            if (messageBox) {
                 messageBox.textContent = '';
                 messageBox.classList.remove('bg-success-green', 'bg-danger-red', 'bg-accent-blue', 'show');
-
                 let iconClass = '';
                 if (type === 'success') {
                     messageBox.classList.add('bg-success-green');
@@ -429,12 +373,10 @@ document.addEventListener('alpine:init', () => {
                 } else {
                     messageBox.classList.add('fa-info-circle');
                 }
-
                 const icon = document.createElement('i');
                 icon.classList.add('fa-solid', iconClass);
                 messageBox.appendChild(icon);
                 messageBox.innerHTML += ` ${message}`;
-
                 messageBox.classList.add('show');
                 setTimeout(() => {
                     messageBox.classList.remove('show');

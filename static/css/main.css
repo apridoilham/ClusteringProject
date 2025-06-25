@@ -4,15 +4,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Custom styles not easily done with pure Tailwind or for specific overrides */
 .data-table th, .data-table td {
-    @apply px-6 py-4 border-b border-border-color text-center; /* Semua sel (heading & data) rata tengah */
-    font-size: 0.95rem; /* Ukuran font standar untuk sel data */
+    @apply px-6 py-4 border-b border-border-color text-center;
+    font-size: 0.95rem;
 }
 
 .data-table th {
     @apply text-text-secondary uppercase font-semibold bg-bg-tertiary sticky top-0 z-10;
-    font-size: 1rem; /* Ukuran font heading diperbesar sedikit */
+    font-size: 1rem;
 }
 
 .data-table td {
@@ -32,7 +31,7 @@
 }
 
 .modal-overlay.active .modal-content {
-    animation: none; /* Reset animation when re-shown */
+    animation: none;
 }
 
 .modal-overlay.active {

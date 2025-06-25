@@ -1,7 +1,7 @@
 {
   "name": "clustering",
   "version": "1.0.0",
-  "description": "Aplikasi ini adalah alat berbasis web yang dibangun dengan Flask untuk melakukan beberapa teknik pra-pemrosesan data dan analisis clustering, termasuk Centering, Scaling, dan visualisasi Dendrogram menggunakan jarak Euclidean.",
+  "description": "This is a Flask-based web application for performing data preprocessing and clustering analysis, including Centering, Scaling, and Euclidean distance-based Dendrogram visualization.",
   "scripts": {
     "dev": "tailwindcss -i ./static/css/main.css -o ./static/css/output.css --watch",
     "build": "tailwindcss -i ./static/css/main.css -o ./static/css/output.css --minify"
